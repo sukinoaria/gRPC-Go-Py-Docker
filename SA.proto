@@ -1,0 +1,36 @@
+syntax = "proto3"; //protobuf版本
+
+package sa_protoc;
+
+// 输入数据格式定义，List<String>
+message InTextArray {
+    repeated string texts = 1; //多条文本输入
+}
+
+// Task1、task3输出 List<int>
+message OutLabelArray {
+    repeated int32 labels = 1;
+}
+
+// Task2输出 List<<String,String,int>>
+message Triplet {
+    string aspect = 1;
+    string opinion = 2;
+    int32 label = 3;
+}
+message OutTripletArray {
+    repeated Triplet triplets = 1;
+}
+
+//接口
+
+service SentimentAnalysis {
+    //task1 情感极性预测
+    rpc SentiCLS (InTextArray) returns (OutLabelArray);
+
+    //task2 意见三元组抽取
+    rpc TripExtract (InTextArray) returns (OutTripletArray);
+
+    //task3 评价方面聚类
+    rpc Cluster (InTextArray) returns (OutLabelArray);
+}
