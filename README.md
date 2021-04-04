@@ -9,7 +9,6 @@
     - Python对数据进行一定的处理并返回(为简化demo代码，仅简单模拟该操作)
     - 通信通过Docker完成
 
-
 ### Step 1 两端交互部分proto定义
 proto3版的数据结构可以参考[官方文档](https://developers.google.com/protocol-buffers/docs/proto3)
 
@@ -133,7 +132,7 @@ server = grpc.server(futures.ThreadPoolExecutor(max_workers=4))
 SA_pb2_grpc.add_SentimentAnalysisServicer_to_server(SAServicer(), server)
 
 # 定义服务端端口8089
-server.add_insecure_port('127.0.0.1:8089')
+server.add_insecure_port('[::]:8089')
 print("Python server started on :[8089]")
 server.start()
 
@@ -187,4 +186,76 @@ sudo docker run -d -p 8089:8089 grpc-server
 ```
 
 ### Step 3 Go客户端
-#### proto编译
+Go部分与之前类似，也是先安装一些必备的编译工具，然后生成可执行的客户端文件
+- 安装编译工具protoc,版本3.15.6 [protoc-linux-x84_64](https://github.com/protocolbuffers/protobuf/releases/tag/v3.15.6)
+- 安装go的依赖（PS:使用protoc-gen-go生成的时候出了一些问题，换用protoc-gen-gofast）：
+```shell
+# 国内用户设置代理
+go env -w GO111MODULE=on
+go env -w GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy/,direct
+go get -u google.golang.org/grpc
+go get github.com/gogo/protobuf/protoc-gen-gofast
+```
+- 编译
+```shell
+# dir: client-Go
+mkdir sa_rpc
+protoc --proto_path ../ -I. SA.proto --gofast_out=plugins=grpc:sa_rpc
+```
+- 客户端代码
+```go
+//client.go
+package main
+
+import (
+	"fmt"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"log"
+	"main/sa_rpc"  //go mod中module名为main,sa_rpc为gRPC生成的包
+)
+
+func main() {
+	// 连接服务端接口
+	conn, err := grpc.Dial("127.0.0.1:8089", grpc.WithInsecure())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	// 通过编译rpc.pb.go得到的函数来处理连接
+	client := sa_protoc.NewSentimentAnalysisClient(conn)
+	// 通过编译rpc.pb.go得到的服务来发送数据类型为[]String的数据
+	test_data := []string{"test1", "test1", "test1"}
+
+	//task1
+	reply, err := client.SentiCLS(context.Background(), &sa_protoc.InTextArray{Texts: test_data})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(reply.Labels)
+
+	//task2
+	reply2, err2 := client.TripExtract(context.Background(), &sa_protoc.InTextArray{Texts: test_data})
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+	fmt.Println(reply2.Triplets[0].Aspect)
+	//task3
+	reply3, err3 := client.Cluster(context.Background(), &sa_protoc.InTextArray{Texts: test_data})
+	if err3 != nil {
+		log.Fatal(err3)
+	}
+	fmt.Println(reply3.Labels)
+}
+```
+- 客户端测试
+```shell
+go run client.go
+```
+- Docker版客户端
+
+在与Docker服务端进行通信时，指定客户端容器的网络模式为host，从而依据服务端映射到宿主机的端口来访问服务。
+```shell
+ docker run --network="host" -it grpc-client /bin/bash 
+```

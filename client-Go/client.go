@@ -10,15 +10,15 @@ import (
 
 func main() {
 	// 连接服务端接口
-	conn, err := grpc.Dial("39.97.115.24:8089", grpc.WithInsecure())
+	conn, err := grpc.Dial("127.0.0.1:8089", grpc.WithInsecure())
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
 
-	// 通过编译rpc.pb.go得到NewHelloServiceClient函数来处理连接
+	// 通过编译rpc.pb.go得到的函数来处理连接
 	client := sa_protoc.NewSentimentAnalysisClient(conn)
-	// 通过编译rpc.pb.go得到的Hello服务来发送数据类型为String的数据
+	// 通过编译rpc.pb.go得到的服务来发送数据类型为[]String的数据
 	test_data := []string{"test1", "test1", "test1"}
 
 	//task1
